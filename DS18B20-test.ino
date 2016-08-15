@@ -6,6 +6,10 @@
 // DS18B20 is the "Programmable Resolution 1-Wire Digital Thermometer" from Maxim former Dallas.
 // Product homepage: https://www.maximintegrated.com/en/products/analog/sensors-and-sensor-interface/DS18B20.html
 // PDF datasheet: https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf
+//
+// Dependencies
+// Arduino OneWire library: https://github.com/PaulStoffregen/OneWire
+
 
 #include <OneWire.h>
 
@@ -16,6 +20,7 @@
 
 OneWire ds(PIN);
 float temp;
+int readCount=0;
 
 void setup() {
   Serial.begin(9600);
@@ -24,46 +29,69 @@ void setup() {
 
 void loop()
 {
-  getTemperature();
-  Serial.print("Temp: ");
-  Serial.print(temp);
-  Serial.print("\n");
+  bool useMonitor=false;
+  if (getTemperature()) {
+    if (useMonitor) {
+      Serial.print("Read #");
+      Serial.print(++readCount);
+      Serial.print(": temp: ");
+    }
+    Serial.println(temp);
+  }
+  else {
+    Serial.println("Read failed!");
+  }
   delay(1000);
 }
 
-
+// Read temperature using the global ds object.
 boolean getTemperature() {
   byte i;
   byte present = 0;
   byte data[12];
-  byte addr[8];
-  //find a device
-  if (!ds.search(addr)) {
-    ds.reset_search();
-    return false;
+  static byte addr[8];
+  static bool addrValid=false;
+
+  if(!addrValid) {
+    // Find a device
+    // TODO: check more than the first device on bus
+    if (!ds.search(addr)) {
+     ds.reset_search();
+      return false;
+    }
+    if (OneWire::crc8( addr, 7) != addr[7]) {
+      return false;
+    }
+    if (addr[0] != DS18S20_ID && addr[0] != DS18B20_ID) {
+      return false;
+    }
+    else
+      addrValid=true;
   }
-  if (OneWire::crc8( addr, 7) != addr[7]) {
-    return false;
-  }
-  if (addr[0] != DS18S20_ID && addr[0] != DS18B20_ID) {
-    return false;
-  }
+
+  // Start conversion
   ds.reset();
   ds.select(addr);
-  // Start conversion
   ds.write(0x44, 1);
   // Wait some time...
   delay(850);
   present = ds.reset();
   ds.select(addr);
+
   // Issue Read scratchpad command
   ds.write(0xBE);
-  // Receive 9 bytes
+  // Receive 9 byte schratchpad
   for ( i = 0; i < 9; i++) {
     data[i] = ds.read();
   }
-  // Calculate temperature value
-  // TODO: handle sign properly
-  temp = ( ((data[1] & 0x0e) << 8) + data[0] ) * 0.0625;
-  return true;
+  // Validate data
+  // TODO: also support 9-11 bit conv ( 0.5, 0.25, 0.125 increments) 
+  if (   OneWire::crc8(data,8) == data[8] // crc ok?
+      && (data[4] & 0x60) == 0x60) {      // was this 12 bit conv?
+    // Calculate temperature value (
+    temp = ( ((data[1] & 0x07) << 8) + data[0] ) * 0.0625;
+    temp *= (data[1]&0x80?-1:1); // did we go sub-zero?
+    return true;
+  }
+  return false;
 }
