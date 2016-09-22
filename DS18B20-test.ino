@@ -104,17 +104,18 @@ void loop()
 
     case MAKER:
       lcd.clear();
-      lcd.print(" Velkommen til");
-      lcd.setCursor(0,1);
       lcd.print("  Maker Event");
+      lcd.setCursor(0,1);
+      lcd.print("EsbBib 1/10-2016");
+      displaytime=5000;
       break;
 
     case GEEK:
       lcd.clear();
-      lcd.print(" GeekLabs.dk");
+      lcd.print("   GeekLabs.dk");
       lcd.setCursor(0,1);
-      lcd.print("  er med !");
-      displaytime=1000;
+      lcd.print("    er med !");
+      displaytime=3000;
       break;
   }
   delay(displaytime);
