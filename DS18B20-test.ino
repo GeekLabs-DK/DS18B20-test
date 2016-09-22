@@ -12,36 +12,85 @@
 
 
 #include <OneWire.h>
+#include <LiquidCrystal.h>
 
-#define PIN 3
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
+#define DS18B20_PIN 13
 #define DS18S20_ID 0x10
 #define DS18B20_ID 0x28
 
-OneWire ds(PIN);
+OneWire ds(DS18B20_PIN);
 float temp;
 int readCount=0;
+bool useMonitor=false;
 
 void setup() {
   Serial.begin(9600);
   Serial.print("Reading DS18B20\n");
+  
+  lcd.begin(16, 2);
 }
 
+int state=0;
+#define WSERIAL 3
+#define TEMP   2
+#define MAKER  0
+#define GEEK   1
+#define STATES 3
+int displaytime=2000;
 void loop()
 {
-  bool useMonitor=false;
-  if (getTemperature()) {
-    if (useMonitor) {
-      Serial.print("Read #");
-      Serial.print(++readCount);
-      Serial.print(": temp: ");
-    }
-    Serial.println(temp);
+  switch (state%STATES)
+  {
+    case TEMP:
+      if (getTemperature()) {
+        if (useMonitor) {
+          Serial.print("Read #");
+          Serial.print(++readCount);
+          Serial.print(": temp: ");
+        }
+        Serial.println(temp);
+      }
+      else
+      {
+        Serial.println("Read failed!");
+      }
+      lcd.clear();
+      lcd.print("Temperatur ");
+      lcd.setCursor(0,1);
+      lcd.print(temp);
+      //lcd.write(248);
+      lcd.print("C");
+      break;
+
+    case WSERIAL:
+      lcd.clear();
+      while (Serial.available() > 0)
+        lcd.print(Serial.read());
+      displaytime=0;
+      break;
+
+    case MAKER:
+      lcd.clear();
+      lcd.print(" Velkommen til");
+      lcd.setCursor(0,1);
+      lcd.print("  Maker Event");
+      break;
+
+    case GEEK:
+      lcd.clear();
+      lcd.print(" GeekLabs.dk");
+      lcd.setCursor(0,1);
+      lcd.print("  er med !");
+      displaytime=1000;
+      break;
   }
-  else {
-    Serial.println("Read failed!");
-  }
-  delay(1000);
+  delay(displaytime);
+  state++;
+  //int oldstate=state;
+  //while ((state=rand()) == oldstate)
+  ;
 }
 
 // Read temperature using the global ds object.
