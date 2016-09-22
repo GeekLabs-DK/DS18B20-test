@@ -20,6 +20,9 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 #define DS18S20_ID 0x10
 #define DS18B20_ID 0x28
 
+#define LED_PIN 10
+#define LDR_PIN A0
+
 OneWire ds(DS18B20_PIN);
 float temp;
 int readCount=0;
@@ -30,38 +33,66 @@ void setup() {
   Serial.print("Reading DS18B20\n");
   
   lcd.begin(16, 2);
+  pinMode(LED_PIN, OUTPUT);
 }
 
 int state=0;
-#define WSERIAL 3
-#define TEMP   2
-#define MAKER  0
-#define GEEK   1
-#define STATES 3
-int displaytime=2000;
+#define MAKER   0
+#define GEEK    1
+#define TEMP    2
+#define LIGHT   3
+#define STATES  4
+#define WSERIAL 42
+int displaytime;
 void loop()
 {
   switch (state%STATES)
   {
     case TEMP:
-      if (getTemperature()) {
-        if (useMonitor) {
-          Serial.print("Read #");
-          Serial.print(++readCount);
-          Serial.print(": temp: ");
-        }
-        Serial.println(temp);
-      }
-      else
-      {
-        Serial.println("Read failed!");
-      }
       lcd.clear();
-      lcd.print("Temperatur ");
-      lcd.setCursor(0,1);
-      lcd.print(temp);
-      //lcd.write(248);
-      lcd.print("C");
+      lcd.print("Temperatursensor");
+      for (int i=0; i<10;i++) {
+        if (getTemperature()) {
+          if (useMonitor) {
+            Serial.print("Read #");
+            Serial.print(++readCount);
+            Serial.print(": temp: ");
+         }
+         Serial.println(temp);
+
+         lcd.setCursor(0,1);
+         lcd.print("    ");
+         lcd.print(temp);
+         //lcd.write(248);
+         lcd.print(" C");
+       }
+       else
+       {
+         Serial.println("Read failed!");
+         lcd.setCursor(0,1);
+         lcd.print("    FEJL");
+       }
+      }
+      displaytime=2000;
+      break;
+
+    case LIGHT:{
+      int threshold=600;
+      lcd.clear();
+      lcd.print("   Lyssensor");
+      for (int i=0; i<50;i++) {
+        int light = analogRead(A0);
+        lcd.setCursor(0,1);
+        lcd.print("    ");
+        lcd.print(light);
+        lcd.print(light>threshold?" (off)  ":" (on)  ");
+        digitalWrite(LED_PIN, light>threshold?true:false);
+         //lcd.write(248);
+        delay(500);
+        digitalWrite(LED_PIN, true);
+      }
+      displaytime=0;
+      }
       break;
 
     case WSERIAL:
